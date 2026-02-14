@@ -392,8 +392,14 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 
 	// Update service instance limits (vCPUs and memory)
 	if !data.Vcpus.IsNull() || !data.MemoryGb.IsNull() {
+		_, environment, err := defaultEnvironmentForProject(ctx, *r.client, data.ProjectId.ValueString())
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get default environment, got error: %s", err))
+			return
+		}
 		limitsInput := ServiceInstanceLimitsUpdateInput{
-			ServiceId: data.Id.ValueStringPointer(),
+			ServiceId:     data.Id.ValueStringPointer(),
+			EnvironmentId: &environment.Id,
 		}
 		if !data.Vcpus.IsNull() {
 			limitsInput.VCPUs = data.Vcpus.ValueFloat64Pointer()
@@ -563,8 +569,14 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 
 	// Update service instance limits (vCPUs and memory) if changed
 	if !data.Vcpus.Equal(state.Vcpus) || !data.MemoryGb.Equal(state.MemoryGb) {
+		_, environment, err := defaultEnvironmentForProject(ctx, *r.client, data.ProjectId.ValueString())
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get default environment, got error: %s", err))
+			return
+		}
 		limitsInput := ServiceInstanceLimitsUpdateInput{
-			ServiceId: data.Id.ValueStringPointer(),
+			ServiceId:     data.Id.ValueStringPointer(),
+			EnvironmentId: &environment.Id,
 		}
 		if !data.Vcpus.IsNull() {
 			limitsInput.VCPUs = data.Vcpus.ValueFloat64Pointer()
