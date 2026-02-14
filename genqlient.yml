@@ -13,3 +13,5 @@ bindings:
     type: map[string]interface{}
   DeploymentMeta:
     type: map[string]interface{}
+  ServiceInstanceLimit:
+    type: map[string]interface{}

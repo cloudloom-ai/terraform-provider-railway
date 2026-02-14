@@ -67,19 +67,22 @@ type numReplicas struct {
 }
 
 type ServiceResourceModel struct {
-	Id                                 types.String `tfsdk:"id"`
-	Name                               types.String `tfsdk:"name"`
-	ProjectId                          types.String `tfsdk:"project_id"`
-	CronSchedule                       types.String `tfsdk:"cron_schedule"`
-	SourceImage                        types.String `tfsdk:"source_image"`
-	SourceImagePrivateRegistryUsername types.String `tfsdk:"source_image_registry_username"`
-	SourceImagePrivateRegistryPassword types.String `tfsdk:"source_image_registry_password"`
-	SourceRepo                         types.String `tfsdk:"source_repo"`
-	SourceRepoBranch                   types.String `tfsdk:"source_repo_branch"`
-	RootDirectory                      types.String `tfsdk:"root_directory"`
-	ConfigPath                         types.String `tfsdk:"config_path"`
-	Volume                             types.Object `tfsdk:"volume"`
-	Regions                            types.List   `tfsdk:"regions"`
+	Id                                 types.String  `tfsdk:"id"`
+	Name                               types.String  `tfsdk:"name"`
+	ProjectId                          types.String  `tfsdk:"project_id"`
+	CronSchedule                       types.String  `tfsdk:"cron_schedule"`
+	SourceImage                        types.String  `tfsdk:"source_image"`
+	SourceImagePrivateRegistryUsername types.String  `tfsdk:"source_image_registry_username"`
+	SourceImagePrivateRegistryPassword types.String  `tfsdk:"source_image_registry_password"`
+	SourceRepo                         types.String  `tfsdk:"source_repo"`
+	SourceRepoBranch                   types.String  `tfsdk:"source_repo_branch"`
+	RootDirectory                      types.String  `tfsdk:"root_directory"`
+	ConfigPath                         types.String  `tfsdk:"config_path"`
+	Volume                             types.Object  `tfsdk:"volume"`
+	Regions                            types.List    `tfsdk:"regions"`
+	Vcpus                              types.Float64 `tfsdk:"vcpus"`
+	MemoryGb                           types.Float64 `tfsdk:"memory_gb"`
+	SleepApplication                   types.Bool    `tfsdk:"sleep_application"`
 }
 
 func (r *ServiceResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -247,6 +250,21 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 					},
 				},
 			},
+			"vcpus": schema.Float64Attribute{
+				MarkdownDescription: "Number of vCPUs to allocate to the service instance.",
+				Optional:            true,
+				Computed:            true,
+			},
+			"memory_gb": schema.Float64Attribute{
+				MarkdownDescription: "Amount of memory in GB to allocate to the service instance.",
+				Optional:            true,
+				Computed:            true,
+			},
+			"sleep_application": schema.BoolAttribute{
+				MarkdownDescription: "Enable sleep application mode (formerly app sleeping/serverless). When enabled, Railway automatically puts the service to sleep after 10 minutes of inactivity.",
+				Optional:            true,
+				Computed:            true,
+			},
 		},
 	}
 }
@@ -371,6 +389,25 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 	}
 
 	tflog.Trace(ctx, "created service settings")
+
+	// Update service instance limits (vCPUs and memory)
+	if !data.Vcpus.IsNull() || !data.MemoryGb.IsNull() {
+		limitsInput := ServiceInstanceLimitsUpdateInput{
+			ServiceId: data.Id.ValueStringPointer(),
+		}
+		if !data.Vcpus.IsNull() {
+			limitsInput.VCPUs = data.Vcpus.ValueFloat64Pointer()
+		}
+		if !data.MemoryGb.IsNull() {
+			limitsInput.MemoryGB = data.MemoryGb.ValueFloat64Pointer()
+		}
+		_, err = updateServiceInstanceLimits(ctx, *r.client, limitsInput)
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create service limits, got error: %s", err))
+			return
+		}
+		tflog.Trace(ctx, "created service limits")
+	}
 
 	if !data.Volume.IsNull() {
 		resp.Diagnostics.Append(data.Volume.As(ctx, &volumeData, basetypes.ObjectAsOptions{})...)
@@ -523,6 +560,25 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 	}
 
 	tflog.Trace(ctx, "updated service settings")
+
+	// Update service instance limits (vCPUs and memory) if changed
+	if !data.Vcpus.Equal(state.Vcpus) || !data.MemoryGb.Equal(state.MemoryGb) {
+		limitsInput := ServiceInstanceLimitsUpdateInput{
+			ServiceId: data.Id.ValueStringPointer(),
+		}
+		if !data.Vcpus.IsNull() {
+			limitsInput.VCPUs = data.Vcpus.ValueFloat64Pointer()
+		}
+		if !data.MemoryGb.IsNull() {
+			limitsInput.MemoryGB = data.MemoryGb.ValueFloat64Pointer()
+		}
+		_, err = updateServiceInstanceLimits(ctx, *r.client, limitsInput)
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update service limits, got error: %s", err))
+			return
+		}
+		tflog.Trace(ctx, "updated service limits")
+	}
 
 	// Delete volume if it was removed
 	if data.Volume.IsNull() && !state.Volume.IsNull() {
@@ -730,6 +786,10 @@ func buildServiceInstanceInput(data *ServiceResourceModel, regionsData *[]Servic
 		instanceInput.RegistryCredentials.Password = data.SourceImagePrivateRegistryPassword.ValueString()
 	}
 
+	if !data.SleepApplication.IsNull() {
+		instanceInput.SleepApplication = data.SleepApplication.ValueBoolPointer()
+	}
+
 	return instanceInput
 }
 
@@ -758,6 +818,8 @@ func getAndBuildServiceInstance(ctx context.Context, client graphql.Client, proj
 	if response.ServiceInstance.RailwayConfigFile != nil && len(*response.ServiceInstance.RailwayConfigFile) != 0 {
 		data.ConfigPath = types.StringValue(*response.ServiceInstance.RailwayConfigFile)
 	}
+
+	data.SleepApplication = types.BoolValue(response.ServiceInstance.SleepApplication)
 
 	if response.ServiceInstance.Source != nil {
 		if response.ServiceInstance.Source.Image != nil {
@@ -795,6 +857,18 @@ func getAndBuildServiceInstance(ctx context.Context, client graphql.Client, proj
 		data.Regions = types.ListValueMust(types.ObjectType{AttrTypes: regionAttrTypes}, regions)
 	} else if data.Regions.IsUnknown() {
 		data.Regions = types.ListNull(types.ObjectType{AttrTypes: regionAttrTypes})
+	}
+
+	// Get service instance limits (vCPUs and memory)
+	limitsResponse, err := getServiceInstanceLimits(ctx, client, environment.Id, serviceId)
+	if err == nil {
+		limits := limitsResponse.ServiceInstanceLimits
+		if vcpus, ok := limits["vCPUs"]; ok && vcpus != nil {
+			data.Vcpus = types.Float64Value(vcpus.(float64))
+		}
+		if memoryGB, ok := limits["memoryGB"]; ok && memoryGB != nil {
+			data.MemoryGb = types.Float64Value(memoryGB.(float64))
+		}
 	}
 
 	return nil

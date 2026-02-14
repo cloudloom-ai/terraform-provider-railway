@@ -53,10 +53,18 @@ query getServiceInstance(
     rootDirectory
     railwayConfigFile
     cronSchedule
+    sleepApplication
     latestDeployment {
       meta
     }
   }
+}
+
+query getServiceInstanceLimits(
+  $environmentId: String!
+  $serviceId: String!
+) {
+  serviceInstanceLimits(environmentId: $environmentId, serviceId: $serviceId)
 }
 
 query getServiceInstances(
@@ -102,6 +110,16 @@ mutation updateServiceInstance(
     input: $input
     serviceId: $serviceId
   )
+}
+
+# @genqlient(for: "ServiceInstanceLimitsUpdateInput.environmentId", pointer: true)
+# @genqlient(for: "ServiceInstanceLimitsUpdateInput.serviceId", pointer: true)
+# @genqlient(for: "ServiceInstanceLimitsUpdateInput.vCPUs", pointer: true)
+# @genqlient(for: "ServiceInstanceLimitsUpdateInput.memoryGB", pointer: true)
+mutation updateServiceInstanceLimits(
+  $input: ServiceInstanceLimitsUpdateInput!
+) {
+  serviceInstanceLimitsUpdate(input: $input)
 }
 
 mutation deleteService($id: String!) {
