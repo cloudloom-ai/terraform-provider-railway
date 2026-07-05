@@ -526,14 +526,14 @@ type ServiceInstanceUpdateInput struct {
 	Builder                 *Builder                  `json:"builder,omitempty"`
 	CronSchedule            *string                   `json:"cronSchedule"`
 	DockerfilePath          string                    `json:"dockerfilePath"`
-	DrainingSeconds         int                       `json:"drainingSeconds"`
+	DrainingSeconds         *int                      `json:"drainingSeconds,omitempty"`
 	HealthcheckPath         *string                   `json:"healthcheckPath,omitempty"`
 	HealthcheckTimeout      *int                      `json:"healthcheckTimeout,omitempty"`
 	Ipv6EgressEnabled       bool                      `json:"ipv6EgressEnabled"`
 	MultiRegionConfig       *map[string]interface{}   `json:"multiRegionConfig,omitempty"`
 	NixpacksPlan            *map[string]interface{}   `json:"nixpacksPlan,omitempty"`
 	NumReplicas             *int                      `json:"numReplicas,omitempty"`
-	OverlapSeconds          int                       `json:"overlapSeconds"`
+	OverlapSeconds          *int                      `json:"overlapSeconds,omitempty"`
 	PreDeployCommand        *[]string                 `json:"preDeployCommand,omitempty"`
 	RailwayConfigFile       *string                   `json:"railwayConfigFile,omitempty"`
 	Region                  *string                   `json:"region,omitempty"`
@@ -560,7 +560,7 @@ func (v *ServiceInstanceUpdateInput) GetCronSchedule() *string { return v.CronSc
 func (v *ServiceInstanceUpdateInput) GetDockerfilePath() string { return v.DockerfilePath }
 
 // GetDrainingSeconds returns ServiceInstanceUpdateInput.DrainingSeconds, and is useful for accessing the field via an interface.
-func (v *ServiceInstanceUpdateInput) GetDrainingSeconds() int { return v.DrainingSeconds }
+func (v *ServiceInstanceUpdateInput) GetDrainingSeconds() *int { return v.DrainingSeconds }
 
 // GetHealthcheckPath returns ServiceInstanceUpdateInput.HealthcheckPath, and is useful for accessing the field via an interface.
 func (v *ServiceInstanceUpdateInput) GetHealthcheckPath() *string { return v.HealthcheckPath }
@@ -583,7 +583,7 @@ func (v *ServiceInstanceUpdateInput) GetNixpacksPlan() *map[string]interface{} {
 func (v *ServiceInstanceUpdateInput) GetNumReplicas() *int { return v.NumReplicas }
 
 // GetOverlapSeconds returns ServiceInstanceUpdateInput.OverlapSeconds, and is useful for accessing the field via an interface.
-func (v *ServiceInstanceUpdateInput) GetOverlapSeconds() int { return v.OverlapSeconds }
+func (v *ServiceInstanceUpdateInput) GetOverlapSeconds() *int { return v.OverlapSeconds }
 
 // GetPreDeployCommand returns ServiceInstanceUpdateInput.PreDeployCommand, and is useful for accessing the field via an interface.
 func (v *ServiceInstanceUpdateInput) GetPreDeployCommand() *[]string { return v.PreDeployCommand }
@@ -2426,6 +2426,8 @@ type getServiceInstanceServiceInstance struct {
 	SleepApplication   *bool                                                 `json:"sleepApplication"`
 	HealthcheckPath    *string                                               `json:"healthcheckPath"`
 	HealthcheckTimeout *int                                                  `json:"healthcheckTimeout"`
+	DrainingSeconds    *int                                                  `json:"drainingSeconds"`
+	OverlapSeconds     *int                                                  `json:"overlapSeconds"`
 	// The most recent deployment for this service instance
 	LatestDeployment getServiceInstanceServiceInstanceLatestDeployment `json:"latestDeployment"`
 }
@@ -2454,6 +2456,12 @@ func (v *getServiceInstanceServiceInstance) GetHealthcheckPath() *string { retur
 
 // GetHealthcheckTimeout returns getServiceInstanceServiceInstance.HealthcheckTimeout, and is useful for accessing the field via an interface.
 func (v *getServiceInstanceServiceInstance) GetHealthcheckTimeout() *int { return v.HealthcheckTimeout }
+
+// GetDrainingSeconds returns getServiceInstanceServiceInstance.DrainingSeconds, and is useful for accessing the field via an interface.
+func (v *getServiceInstanceServiceInstance) GetDrainingSeconds() *int { return v.DrainingSeconds }
+
+// GetOverlapSeconds returns getServiceInstanceServiceInstance.OverlapSeconds, and is useful for accessing the field via an interface.
+func (v *getServiceInstanceServiceInstance) GetOverlapSeconds() *int { return v.OverlapSeconds }
 
 // GetLatestDeployment returns getServiceInstanceServiceInstance.LatestDeployment, and is useful for accessing the field via an interface.
 func (v *getServiceInstanceServiceInstance) GetLatestDeployment() getServiceInstanceServiceInstanceLatestDeployment {
@@ -4227,6 +4235,8 @@ query getServiceInstance ($environmentId: String!, $serviceId: String!) {
 		sleepApplication
 		healthcheckPath
 		healthcheckTimeout
+		drainingSeconds
+		overlapSeconds
 		latestDeployment {
 			meta
 		}

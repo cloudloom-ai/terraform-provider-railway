@@ -85,6 +85,8 @@ type ServiceResourceModel struct {
 	MemoryGb                           types.Float64 `tfsdk:"memory_gb"`
 	HealthcheckPath                    types.String `tfsdk:"healthcheck_path"`
 	HealthcheckTimeout                 types.Int64  `tfsdk:"healthcheck_timeout"`
+	DrainingSeconds                    types.Int64  `tfsdk:"draining_seconds"`
+	OverlapSeconds                     types.Int64  `tfsdk:"overlap_seconds"`
 }
 
 func (r *ServiceResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -274,6 +276,16 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 			},
 			"healthcheck_timeout": schema.Int64Attribute{
 				MarkdownDescription: "Maximum time in seconds the healthcheck can take to respond. **Default** `30`.",
+				Optional:            true,
+				Computed:            true,
+			},
+			"draining_seconds": schema.Int64Attribute{
+				MarkdownDescription: "Time in seconds Railway waits for the old deployment to gracefully shut down before killing it. **Default** `0`.",
+				Optional:            true,
+				Computed:            true,
+			},
+			"overlap_seconds": schema.Int64Attribute{
+				MarkdownDescription: "Time in seconds the old and new deployments run simultaneously during a deploy to ensure zero-downtime cutover. **Default** `0`.",
 				Optional:            true,
 				Computed:            true,
 			},
@@ -789,6 +801,16 @@ func buildServiceInstanceInput(data *ServiceResourceModel, regionsData *[]Servic
 		instanceInput.HealthcheckTimeout = &timeout
 	}
 
+	if !data.DrainingSeconds.IsNull() {
+		draining := int(data.DrainingSeconds.ValueInt64())
+		instanceInput.DrainingSeconds = &draining
+	}
+
+	if !data.OverlapSeconds.IsNull() {
+		overlap := int(data.OverlapSeconds.ValueInt64())
+		instanceInput.OverlapSeconds = &overlap
+	}
+
 	return instanceInput
 }
 
@@ -853,6 +875,14 @@ func getAndBuildServiceInstance(ctx context.Context, client graphql.Client, proj
 
 	if response.ServiceInstance.HealthcheckTimeout != nil {
 		data.HealthcheckTimeout = types.Int64Value(int64(*response.ServiceInstance.HealthcheckTimeout))
+	}
+
+	if response.ServiceInstance.DrainingSeconds != nil {
+		data.DrainingSeconds = types.Int64Value(int64(*response.ServiceInstance.DrainingSeconds))
+	}
+
+	if response.ServiceInstance.OverlapSeconds != nil {
+		data.OverlapSeconds = types.Int64Value(int64(*response.ServiceInstance.OverlapSeconds))
 	}
 
 	if response.ServiceInstance.Source != nil {
