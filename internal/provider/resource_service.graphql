@@ -43,6 +43,8 @@ mutation updateService(
 # @genqlient(for: "ServiceSource.image", pointer: true)
 # @genqlient(for: "ServiceSource.repo", pointer: true)
 # @genqlient(for: "ServiceInstance.sleepApplication", pointer: true)
+# @genqlient(for: "ServiceInstance.healthcheckPath", pointer: true)
+# @genqlient(for: "ServiceInstance.healthcheckTimeout", pointer: true)
 query getServiceInstance(
   $environmentId: String!
   $serviceId: String!
@@ -56,6 +58,8 @@ query getServiceInstance(
     railwayConfigFile
     cronSchedule
     sleepApplication
+    healthcheckPath
+    healthcheckTimeout
     latestDeployment {
       meta
     }

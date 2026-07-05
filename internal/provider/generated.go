@@ -2419,11 +2419,13 @@ func (v *getServiceInstanceResponse) GetServiceInstance() getServiceInstanceServ
 
 // getServiceInstanceServiceInstance includes the requested fields of the GraphQL type ServiceInstance.
 type getServiceInstanceServiceInstance struct {
-	Source            *getServiceInstanceServiceInstanceSourceServiceSource `json:"source"`
-	RootDirectory     *string                                               `json:"rootDirectory"`
-	RailwayConfigFile *string                                               `json:"railwayConfigFile"`
-	CronSchedule      *string                                               `json:"cronSchedule"`
-	SleepApplication  *bool                                                 `json:"sleepApplication"`
+	Source             *getServiceInstanceServiceInstanceSourceServiceSource `json:"source"`
+	RootDirectory      *string                                               `json:"rootDirectory"`
+	RailwayConfigFile  *string                                               `json:"railwayConfigFile"`
+	CronSchedule       *string                                               `json:"cronSchedule"`
+	SleepApplication   *bool                                                 `json:"sleepApplication"`
+	HealthcheckPath    *string                                               `json:"healthcheckPath"`
+	HealthcheckTimeout *int                                                  `json:"healthcheckTimeout"`
 	// The most recent deployment for this service instance
 	LatestDeployment getServiceInstanceServiceInstanceLatestDeployment `json:"latestDeployment"`
 }
@@ -2446,6 +2448,12 @@ func (v *getServiceInstanceServiceInstance) GetCronSchedule() *string { return v
 
 // GetSleepApplication returns getServiceInstanceServiceInstance.SleepApplication, and is useful for accessing the field via an interface.
 func (v *getServiceInstanceServiceInstance) GetSleepApplication() *bool { return v.SleepApplication }
+
+// GetHealthcheckPath returns getServiceInstanceServiceInstance.HealthcheckPath, and is useful for accessing the field via an interface.
+func (v *getServiceInstanceServiceInstance) GetHealthcheckPath() *string { return v.HealthcheckPath }
+
+// GetHealthcheckTimeout returns getServiceInstanceServiceInstance.HealthcheckTimeout, and is useful for accessing the field via an interface.
+func (v *getServiceInstanceServiceInstance) GetHealthcheckTimeout() *int { return v.HealthcheckTimeout }
 
 // GetLatestDeployment returns getServiceInstanceServiceInstance.LatestDeployment, and is useful for accessing the field via an interface.
 func (v *getServiceInstanceServiceInstance) GetLatestDeployment() getServiceInstanceServiceInstanceLatestDeployment {
@@ -4217,6 +4225,8 @@ query getServiceInstance ($environmentId: String!, $serviceId: String!) {
 		railwayConfigFile
 		cronSchedule
 		sleepApplication
+		healthcheckPath
+		healthcheckTimeout
 		latestDeployment {
 			meta
 		}

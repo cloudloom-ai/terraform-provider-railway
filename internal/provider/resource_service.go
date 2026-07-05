@@ -83,6 +83,8 @@ type ServiceResourceModel struct {
 	SleepApplication                   types.Bool   `tfsdk:"sleep_application"`
 	Vcpus                              types.Float64 `tfsdk:"vcpus"`
 	MemoryGb                           types.Float64 `tfsdk:"memory_gb"`
+	HealthcheckPath                    types.String `tfsdk:"healthcheck_path"`
+	HealthcheckTimeout                 types.Int64  `tfsdk:"healthcheck_timeout"`
 }
 
 func (r *ServiceResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -262,6 +264,16 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 			},
 			"memory_gb": schema.Float64Attribute{
 				MarkdownDescription: "Amount of memory in GB to allocate to the service instance.",
+				Optional:            true,
+				Computed:            true,
+			},
+			"healthcheck_path": schema.StringAttribute{
+				MarkdownDescription: "HTTP path that Railway polls to verify the service is healthy. Must start with `/`. When set, switches the healthcheck from TCP to HTTP, enabling zero-downtime deploys.",
+				Optional:            true,
+				Computed:            true,
+			},
+			"healthcheck_timeout": schema.Int64Attribute{
+				MarkdownDescription: "Maximum time in seconds the healthcheck can take to respond. **Default** `30`.",
 				Optional:            true,
 				Computed:            true,
 			},
@@ -768,6 +780,15 @@ func buildServiceInstanceInput(data *ServiceResourceModel, regionsData *[]Servic
 		instanceInput.SleepApplication = data.SleepApplication.ValueBoolPointer()
 	}
 
+	if !data.HealthcheckPath.IsNull() {
+		instanceInput.HealthcheckPath = data.HealthcheckPath.ValueStringPointer()
+	}
+
+	if !data.HealthcheckTimeout.IsNull() {
+		timeout := int(data.HealthcheckTimeout.ValueInt64())
+		instanceInput.HealthcheckTimeout = &timeout
+	}
+
 	return instanceInput
 }
 
@@ -824,6 +845,14 @@ func getAndBuildServiceInstance(ctx context.Context, client graphql.Client, proj
 
 	if response.ServiceInstance.SleepApplication != nil {
 		data.SleepApplication = types.BoolValue(*response.ServiceInstance.SleepApplication)
+	}
+
+	if response.ServiceInstance.HealthcheckPath != nil {
+		data.HealthcheckPath = types.StringValue(*response.ServiceInstance.HealthcheckPath)
+	}
+
+	if response.ServiceInstance.HealthcheckTimeout != nil {
+		data.HealthcheckTimeout = types.Int64Value(int64(*response.ServiceInstance.HealthcheckTimeout))
 	}
 
 	if response.ServiceInstance.Source != nil {
