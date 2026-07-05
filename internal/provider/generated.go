@@ -2369,6 +2369,7 @@ type getServiceInstanceServiceInstance struct {
 	RootDirectory     *string                                               `json:"rootDirectory"`
 	RailwayConfigFile *string                                               `json:"railwayConfigFile"`
 	CronSchedule      *string                                               `json:"cronSchedule"`
+	SleepApplication  *bool                                                 `json:"sleepApplication"`
 	// The most recent deployment for this service instance
 	LatestDeployment getServiceInstanceServiceInstanceLatestDeployment `json:"latestDeployment"`
 }
@@ -2388,6 +2389,9 @@ func (v *getServiceInstanceServiceInstance) GetRailwayConfigFile() *string {
 
 // GetCronSchedule returns getServiceInstanceServiceInstance.CronSchedule, and is useful for accessing the field via an interface.
 func (v *getServiceInstanceServiceInstance) GetCronSchedule() *string { return v.CronSchedule }
+
+// GetSleepApplication returns getServiceInstanceServiceInstance.SleepApplication, and is useful for accessing the field via an interface.
+func (v *getServiceInstanceServiceInstance) GetSleepApplication() *bool { return v.SleepApplication }
 
 // GetLatestDeployment returns getServiceInstanceServiceInstance.LatestDeployment, and is useful for accessing the field via an interface.
 func (v *getServiceInstanceServiceInstance) GetLatestDeployment() getServiceInstanceServiceInstanceLatestDeployment {
@@ -4147,6 +4151,7 @@ query getServiceInstance ($environmentId: String!, $serviceId: String!) {
 		rootDirectory
 		railwayConfigFile
 		cronSchedule
+		sleepApplication
 		latestDeployment {
 			meta
 		}

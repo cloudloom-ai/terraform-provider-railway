@@ -42,6 +42,7 @@ mutation updateService(
 # @genqlient(for: "ServiceInstance.source", pointer: true)
 # @genqlient(for: "ServiceSource.image", pointer: true)
 # @genqlient(for: "ServiceSource.repo", pointer: true)
+# @genqlient(for: "ServiceInstance.sleepApplication", pointer: true)
 query getServiceInstance(
   $environmentId: String!
   $serviceId: String!
@@ -54,6 +55,7 @@ query getServiceInstance(
     rootDirectory
     railwayConfigFile
     cronSchedule
+    sleepApplication
     latestDeployment {
       meta
     }

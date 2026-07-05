@@ -80,6 +80,7 @@ type ServiceResourceModel struct {
 	ConfigPath                         types.String `tfsdk:"config_path"`
 	Volume                             types.Object `tfsdk:"volume"`
 	Regions                            types.List   `tfsdk:"regions"`
+	SleepApplication                   types.Bool   `tfsdk:"sleep_application"`
 }
 
 func (r *ServiceResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -246,6 +247,11 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 						},
 					},
 				},
+			},
+			"sleep_application": schema.BoolAttribute{
+				MarkdownDescription: "Enable sleep application mode. When enabled, Railway automatically puts the service to sleep after a period of inactivity.",
+				Optional:            true,
+				Computed:            true,
 			},
 		},
 	}
@@ -730,6 +736,10 @@ func buildServiceInstanceInput(data *ServiceResourceModel, regionsData *[]Servic
 		instanceInput.RegistryCredentials.Password = data.SourceImagePrivateRegistryPassword.ValueString()
 	}
 
+	if !data.SleepApplication.IsNull() {
+		instanceInput.SleepApplication = data.SleepApplication.ValueBoolPointer()
+	}
+
 	return instanceInput
 }
 
@@ -757,6 +767,10 @@ func getAndBuildServiceInstance(ctx context.Context, client graphql.Client, proj
 
 	if response.ServiceInstance.RailwayConfigFile != nil && len(*response.ServiceInstance.RailwayConfigFile) != 0 {
 		data.ConfigPath = types.StringValue(*response.ServiceInstance.RailwayConfigFile)
+	}
+
+	if response.ServiceInstance.SleepApplication != nil {
+		data.SleepApplication = types.BoolValue(*response.ServiceInstance.SleepApplication)
 	}
 
 	if response.ServiceInstance.Source != nil {
