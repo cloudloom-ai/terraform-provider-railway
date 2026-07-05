@@ -81,6 +81,8 @@ type ServiceResourceModel struct {
 	Volume                             types.Object `tfsdk:"volume"`
 	Regions                            types.List   `tfsdk:"regions"`
 	SleepApplication                   types.Bool   `tfsdk:"sleep_application"`
+	Vcpus                              types.Float64 `tfsdk:"vcpus"`
+	MemoryGb                           types.Float64 `tfsdk:"memory_gb"`
 }
 
 func (r *ServiceResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -253,6 +255,16 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Optional:            true,
 				Computed:            true,
 			},
+			"vcpus": schema.Float64Attribute{
+				MarkdownDescription: "Number of vCPUs to allocate to the service instance.",
+				Optional:            true,
+				Computed:            true,
+			},
+			"memory_gb": schema.Float64Attribute{
+				MarkdownDescription: "Amount of memory in GB to allocate to the service instance.",
+				Optional:            true,
+				Computed:            true,
+			},
 		},
 	}
 }
@@ -377,6 +389,14 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 	}
 
 	tflog.Trace(ctx, "created service settings")
+
+	if !data.Vcpus.IsNull() || !data.MemoryGb.IsNull() {
+		if err := updateServiceLimits(ctx, *r.client, data.ProjectId.ValueString(), data.Id.ValueString(), data); err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create service limits, got error: %s", err))
+			return
+		}
+		tflog.Trace(ctx, "created service limits")
+	}
 
 	if !data.Volume.IsNull() {
 		resp.Diagnostics.Append(data.Volume.As(ctx, &volumeData, basetypes.ObjectAsOptions{})...)
@@ -529,6 +549,14 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 	}
 
 	tflog.Trace(ctx, "updated service settings")
+
+	if !data.Vcpus.Equal(state.Vcpus) || !data.MemoryGb.Equal(state.MemoryGb) {
+		if err := updateServiceLimits(ctx, *r.client, data.ProjectId.ValueString(), data.Id.ValueString(), data); err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update service limits, got error: %s", err))
+			return
+		}
+		tflog.Trace(ctx, "updated service limits")
+	}
 
 	// Delete volume if it was removed
 	if data.Volume.IsNull() && !state.Volume.IsNull() {
@@ -743,6 +771,31 @@ func buildServiceInstanceInput(data *ServiceResourceModel, regionsData *[]Servic
 	return instanceInput
 }
 
+// updateServiceLimits resolves the default environment for the project and
+// applies the vCPU and memory limits from the model to the service instance.
+func updateServiceLimits(ctx context.Context, client graphql.Client, projectId string, serviceId string, data *ServiceResourceModel) error {
+	_, environment, err := defaultEnvironmentForProject(ctx, client, projectId)
+	if err != nil {
+		return err
+	}
+
+	input := ServiceInstanceLimitsUpdateInput{
+		ServiceId:     &serviceId,
+		EnvironmentId: &environment.Id,
+	}
+
+	if !data.Vcpus.IsNull() {
+		input.VCPUs = data.Vcpus.ValueFloat64Pointer()
+	}
+
+	if !data.MemoryGb.IsNull() {
+		input.MemoryGB = data.MemoryGb.ValueFloat64Pointer()
+	}
+
+	_, err = updateServiceInstanceLimits(ctx, client, input)
+	return err
+}
+
 func getAndBuildServiceInstance(ctx context.Context, client graphql.Client, projectId string, serviceId string, data *ServiceResourceModel) error {
 	// Read the service again to get the updated source attributes
 	_, environment, err := defaultEnvironmentForProject(ctx, client, projectId)
@@ -809,6 +862,18 @@ func getAndBuildServiceInstance(ctx context.Context, client graphql.Client, proj
 		data.Regions = types.ListValueMust(types.ObjectType{AttrTypes: regionAttrTypes}, regions)
 	} else if data.Regions.IsUnknown() {
 		data.Regions = types.ListNull(types.ObjectType{AttrTypes: regionAttrTypes})
+	}
+
+	// Read the resource limits (vCPUs and memory) for the service instance
+	limitsResponse, err := getServiceInstanceLimits(ctx, client, environment.Id, serviceId)
+	if err == nil {
+		limits := limitsResponse.ServiceInstanceLimits
+		if vcpus, ok := limits["vCPUs"]; ok && vcpus != nil {
+			data.Vcpus = types.Float64Value(vcpus.(float64))
+		}
+		if memoryGB, ok := limits["memoryGB"]; ok && memoryGB != nil {
+			data.MemoryGb = types.Float64Value(memoryGB.(float64))
+		}
 	}
 
 	return nil

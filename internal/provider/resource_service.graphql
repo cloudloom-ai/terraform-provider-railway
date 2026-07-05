@@ -77,6 +77,13 @@ query getServiceInstances(
   }
 }
 
+query getServiceInstanceLimits(
+  $environmentId: String!
+  $serviceId: String!
+) {
+  serviceInstanceLimits(environmentId: $environmentId, serviceId: $serviceId)
+}
+
 # @genqlient(for: "ServiceInstanceUpdateInput.rootDirectory", omitempty: true, pointer: true)
 # @genqlient(for: "ServiceInstanceUpdateInput.railwayConfigFile", omitempty: true, pointer: true)
 # @genqlient(for: "ServiceInstanceUpdateInput.cronSchedule", pointer: true)
@@ -109,6 +116,16 @@ mutation updateServiceInstance(
 
 mutation deleteService($id: String!) {
   serviceDelete(id: $id)
+}
+
+# @genqlient(for: "ServiceInstanceLimitsUpdateInput.environmentId", pointer: true)
+# @genqlient(for: "ServiceInstanceLimitsUpdateInput.serviceId", pointer: true)
+# @genqlient(for: "ServiceInstanceLimitsUpdateInput.vCPUs", pointer: true)
+# @genqlient(for: "ServiceInstanceLimitsUpdateInput.memoryGB", pointer: true)
+mutation updateServiceInstanceLimits(
+  $input: ServiceInstanceLimitsUpdateInput!
+) {
+  serviceInstanceLimitsUpdate(input: $input)
 }
 
 fragment Volume on Volume {
